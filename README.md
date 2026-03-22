@@ -7,7 +7,7 @@ Built on **ARKit + RealityKit**. Zero external dependencies.
 ## Requirements
 
 - iOS 16+
-- Xcode 15+
+- Xcode 16+
 - Device with ARKit support (does not work in Simulator)
 
 ---
@@ -24,7 +24,7 @@ Built on **ARKit + RealityKit**. Zero external dependencies.
 1. **File → Add Package Dependencies…**
 2. Paste the repository URL:
    ```
-   https://github.com/YOUR-USERNAME/PosterBoy.git
+   https://github.com/daliborjanecek/PosterBoy.git
    ```
 3. **Add Package**, confirm adding the `PosterBoy` library to your target
 
