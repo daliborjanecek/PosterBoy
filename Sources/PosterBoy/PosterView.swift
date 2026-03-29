@@ -34,6 +34,10 @@ public struct PosterView: UIViewRepresentable {
     private var globalDetectedHandler: ((String) -> Void)?
     private var globalLostHandler: ((String) -> Void)?
 
+    /// Controls whether the AR overlay layer is active.
+    /// When `false`, only the camera feed is shown. When `true`, AR tracking starts and overlays appear.
+    private var isActive: Bool
+
     // MARK: Initializers
 
     /// Create a PosterView with a single overlay.
@@ -41,9 +45,12 @@ public struct PosterView: UIViewRepresentable {
     ///   - content: The overlay to display on the detected anchor.
     ///   - resourceGroup: Name of the AR Resource Group in the Xcode asset catalog.
     ///     Defaults to `"AR Resources"`.
-    public init(content: PosterContent, resourceGroup: String = "AR Resources") {
+    ///   - isActive: When `false` (default), only the camera feed is shown.
+    ///     Set to `true` to start AR tracking and show overlays.
+    public init(content: PosterContent, resourceGroup: String = "AR Resources", isActive: Bool = true) {
         self.contents = [content]
         self.resourceGroupName = resourceGroup
+        self.isActive = isActive
     }
 
     /// Create a PosterView with multiple overlays.
@@ -51,9 +58,12 @@ public struct PosterView: UIViewRepresentable {
     ///   - contents: Array of overlays, each tied to a different anchor.
     ///   - resourceGroup: Name of the AR Resource Group in the Xcode asset catalog.
     ///     Defaults to `"AR Resources"`.
-    public init(contents: [PosterContent], resourceGroup: String = "AR Resources") {
+    ///   - isActive: When `false` (default), only the camera feed is shown.
+    ///     Set to `true` to start AR tracking and show overlays.
+    public init(contents: [PosterContent], resourceGroup: String = "AR Resources", isActive: Bool = true) {
         self.contents = contents
         self.resourceGroupName = resourceGroup
+        self.isActive = isActive
     }
 
     // MARK: Modifier-style callbacks
@@ -95,13 +105,17 @@ public struct PosterView: UIViewRepresentable {
             .disableMotionBlur
         ]
 
-        context.coordinator.configure(arView: arView)
+        context.coordinator.setup(arView: arView)
+
+        if isActive {
+            context.coordinator.startTracking()
+        }
+
         return arView
     }
 
     public func updateUIView(_ uiView: ARView, context: Context) {
-        // Contents are immutable after init — no dynamic updates needed.
-        // If you need to change overlays, swap the entire PosterView.
+        context.coordinator.setActive(isActive)
     }
 
     public static func dismantleUIView(_ uiView: ARView, coordinator: PosterARCoordinator) {

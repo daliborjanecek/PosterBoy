@@ -37,6 +37,9 @@ public class PosterARCoordinator: NSObject, @preconcurrency ARSessionDelegate {
     /// Video loopers retained for the lifetime of the overlay
     private var videoLoopers: [String: VideoLooper] = [:]
 
+    /// Whether the AR image tracking session is currently running
+    private var isTrackingActive = false
+
     // MARK: Init
 
     init(
@@ -58,9 +61,17 @@ public class PosterARCoordinator: NSObject, @preconcurrency ARSessionDelegate {
 
     // MARK: - Setup
 
-    /// Configure the ARView and start the image tracking session.
-    func configure(arView: ARView) {
+    /// Attach the ARView and register as session delegate, but do not start AR tracking yet.
+    /// Call `startTracking()` to begin image detection and overlay display.
+    func setup(arView: ARView) {
         self.arView = arView
+        arView.session.delegate = self
+    }
+
+    /// Start the AR image tracking session and enable overlays.
+    /// Safe to call multiple times — subsequent calls are ignored if already active.
+    func startTracking() {
+        guard let arView = arView, !isTrackingActive else { return }
 
         // Load reference images from the app's AR Resource Group
         guard let allReferenceImages = ARReferenceImage.referenceImages(
@@ -87,8 +98,32 @@ public class PosterARCoordinator: NSObject, @preconcurrency ARSessionDelegate {
         config.trackingImages = trackingImages
         config.maximumNumberOfTrackedImages = trackingImages.count
 
-        arView.session.delegate = self
         arView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
+        isTrackingActive = true
+    }
+
+    /// Stop AR tracking and hide all overlays.
+    func stopTracking() {
+        guard isTrackingActive else { return }
+        arView?.session.pause()
+        isTrackingActive = false
+
+        // Hide all existing overlays
+        for entity in anchorEntities.values {
+            entity.isEnabled = false
+        }
+        for looper in videoLoopers.values {
+            looper.pause()
+        }
+    }
+
+    /// Activate or deactivate AR tracking based on the provided flag.
+    func setActive(_ active: Bool) {
+        if active {
+            startTracking()
+        } else {
+            stopTracking()
+        }
     }
 
     /// Stop tracking and release all resources.
