@@ -2,6 +2,20 @@ import ARKit
 import RealityKit
 import AVFoundation
 
+// MARK: - PersonOcclusionMode
+
+/// Controls whether and how people are occluded in front of AR overlays.
+public enum PersonOcclusionMode {
+    /// No person occlusion — AR overlays always appear on top (default on unsupported devices).
+    case disabled
+
+    /// Automatically selects the best available mode:
+    /// - LiDAR devices: depth-based occlusion (most realistic)
+    /// - Face ID devices without LiDAR: 2D segmentation
+    /// - Older devices: silently falls back to no occlusion
+    case automatic
+}
+
 // MARK: - PosterARCoordinator
 
 /// Manages the AR session, image anchor detection, entity creation, and tracking callbacks.
@@ -15,6 +29,7 @@ public class PosterARCoordinator: NSObject, @preconcurrency ARSessionDelegate {
 
     private let contents: [PosterContent]
     private let resourceGroupName: String
+    private let personOcclusion: PersonOcclusionMode
 
     // MARK: Global callbacks
 
@@ -45,11 +60,13 @@ public class PosterARCoordinator: NSObject, @preconcurrency ARSessionDelegate {
     init(
         contents: [PosterContent],
         resourceGroupName: String,
+        personOcclusion: PersonOcclusionMode,
         onDetected: ((String) -> Void)?,
         onLost: ((String) -> Void)?
     ) {
         self.contents = contents
         self.resourceGroupName = resourceGroupName
+        self.personOcclusion = personOcclusion
         self.onDetected = onDetected
         self.onLost = onLost
         super.init()
@@ -94,12 +111,33 @@ public class PosterARCoordinator: NSObject, @preconcurrency ARSessionDelegate {
             return
         }
 
-        let config = ARImageTrackingConfiguration()
-        config.trackingImages = trackingImages
+        // ARWorldTrackingConfiguration supports person occlusion unlike ARImageTrackingConfiguration
+        let config = ARWorldTrackingConfiguration()
+        config.detectionImages = trackingImages
         config.maximumNumberOfTrackedImages = trackingImages.count
+
+        // Apply best available person occlusion based on device capabilities
+        applyPersonOcclusion(to: config)
 
         arView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
         isTrackingActive = true
+    }
+
+    /// Apply the best available person occlusion mode to the configuration.
+    private func applyPersonOcclusion(to config: ARWorldTrackingConfiguration) {
+        guard personOcclusion != .disabled else { return }
+
+        // Try depth-based occlusion first (requires LiDAR)
+        if ARWorldTrackingConfiguration.supportsFrameSemantics(.personSegmentationWithDepth) {
+            config.frameSemantics.insert(.personSegmentationWithDepth)
+            print("[PosterBoy] Person occlusion: depth-based (LiDAR)")
+        } else if ARWorldTrackingConfiguration.supportsFrameSemantics(.personSegmentation) {
+            // Fallback: 2D segmentation (Face ID devices without LiDAR)
+            config.frameSemantics.insert(.personSegmentation)
+            print("[PosterBoy] Person occlusion: 2D segmentation (no LiDAR)")
+        } else {
+            print("[PosterBoy] Person occlusion: not supported on this device")
+        }
     }
 
     /// Stop AR tracking and hide all overlays.

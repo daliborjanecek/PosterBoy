@@ -38,6 +38,9 @@ public struct PosterView: UIViewRepresentable {
     /// When `false`, only the camera feed is shown. When `true`, AR tracking starts and overlays appear.
     private var isActive: Bool
 
+    /// Controls person occlusion — whether people (e.g. hands) appear in front of AR overlays.
+    private var personOcclusion: PersonOcclusionMode
+
     // MARK: Initializers
 
     /// Create a PosterView with a single overlay.
@@ -47,10 +50,13 @@ public struct PosterView: UIViewRepresentable {
     ///     Defaults to `"AR Resources"`.
     ///   - isActive: When `false` (default), only the camera feed is shown.
     ///     Set to `true` to start AR tracking and show overlays.
-    public init(content: PosterContent, resourceGroup: String = "AR Resources", isActive: Bool = true) {
+    ///   - personOcclusion: Whether people/hands appear in front of AR overlays.
+    ///     Use `.automatic` to enable occlusion on supported devices. Defaults to `.disabled`.
+    public init(content: PosterContent, resourceGroup: String = "AR Resources", isActive: Bool = true, personOcclusion: PersonOcclusionMode = .automatic) {
         self.contents = [content]
         self.resourceGroupName = resourceGroup
         self.isActive = isActive
+        self.personOcclusion = personOcclusion
     }
 
     /// Create a PosterView with multiple overlays.
@@ -60,10 +66,13 @@ public struct PosterView: UIViewRepresentable {
     ///     Defaults to `"AR Resources"`.
     ///   - isActive: When `false` (default), only the camera feed is shown.
     ///     Set to `true` to start AR tracking and show overlays.
-    public init(contents: [PosterContent], resourceGroup: String = "AR Resources", isActive: Bool = true) {
+    ///   - personOcclusion: Whether people/hands appear in front of AR overlays.
+    ///     Use `.automatic` to enable occlusion on supported devices. Defaults to `.disabled`.
+    public init(contents: [PosterContent], resourceGroup: String = "AR Resources", isActive: Bool = true, personOcclusion: PersonOcclusionMode = .automatic) {
         self.contents = contents
         self.resourceGroupName = resourceGroup
         self.isActive = isActive
+        self.personOcclusion = personOcclusion
     }
 
     // MARK: Modifier-style callbacks
@@ -90,6 +99,7 @@ public struct PosterView: UIViewRepresentable {
         PosterARCoordinator(
             contents: contents,
             resourceGroupName: resourceGroupName,
+            personOcclusion: personOcclusion,
             onDetected: globalDetectedHandler,
             onLost: globalLostHandler
         )
@@ -98,9 +108,8 @@ public struct PosterView: UIViewRepresentable {
     public func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
 
-        // Disable unnecessary rendering features for better performance
+        // Disable rendering features not needed for image tracking
         arView.renderOptions = [
-            .disablePersonOcclusion,
             .disableDepthOfField,
             .disableMotionBlur
         ]
